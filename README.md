@@ -57,6 +57,27 @@ Webcam ──▶ OpenCV (cv2.VideoCapture, 640×360)
 
 Everything here is software; the only physical component is a standard off-the-shelf webcam. There is no custom hardware, microcontroller, or wiring involved in this particular project.
 
+## Gesture reference
+
+Finger numbering: Thumb = 5, Index = 1, Middle = 2, Ring = 3, Pinky = 4.
+
+| Hand | Gesture | Function |
+|------|----------|-----------|
+| Left | (1), (1,2), (1,2,3), (1,2,3,4), (1,2,3,4,5), (5), (1,5), (1,2,5), (1,2,3,5), fist | Selects one of the 10 bands, Sub-Bass → Air |
+| Left | thumb+pinky (1,4), held ~0.8s | Exit and keep current EQ |
+| Left | thumb+pinky+index (1,4,5), held ~0.8s | Exit and reset all bands to 0 dB |
+| Right | pinch (index+thumb), move vertically | Adjust the selected band's gain |
+| Right | "L" shape (1,5) held | Lock/unlock the selected band |
+
+## GUI controls
+
+| Button | Description |
+|--------|--------------|
+| Save Current Preset | Saves the current slider positions |
+| Apply Saved Preset | Smoothly animates all sliders to the saved values |
+| Randomize | Randomly sets all bands between -20 dB and +20 dB with smooth motion |
+| Set to Default | Resets all sliders to 0 dB |
+
 ## Verified stack
 
 Confirmed by reading the actual source and by installing the exact pinned requirements into a clean virtual environment this pass:
@@ -76,7 +97,7 @@ cd gesture-based-eq
 pip install -r requirements.txt
 ```
 
-1. Install [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) on Windows and select your playback device during its setup.
+1. Install [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) on Windows, and select your playback device (e.g. headphones, speakers) during its setup. Restart once installed.
 2. Confirm its config path matches `C:\Program Files\EqualizerAPO\config\config.txt` — that path is currently hardcoded in `gesture_eq.py`; edit `EQUALIZER_APO_CONFIG` at the top of the file if your install location differs.
 3. Run it:
 
@@ -84,7 +105,16 @@ pip install -r requirements.txt
 python gesture_eq.py
 ```
 
+Allow camera access when prompted. You'll see a 10-band EQ with live sliders, a live camera feed inside the GUI, and the preset/randomize/reset buttons.
+
 **Verified this pass:** `pip install -r requirements.txt` into a fresh venv (Python 3.12) installs cleanly, `gesture_eq.py` compiles, and all four dependencies (`PyQt5`, `mediapipe`, `cv2`, `numpy`) import successfully. The end-to-end gesture-tracking runtime (camera + live hand tracking + APO write) was not re-exercised in that pass — it relies on the state machine described above, which is what's actually in the shipped source.
+
+## Troubleshooting
+
+- **APO write fails / permission denied:** run Python (or the packaged `.exe`) as Administrator — writing to `C:\Program Files\EqualizerAPO` needs it. The GUI sliders still update visually even if the APO write itself fails.
+- **No camera feed:** make sure no other program is holding the webcam, and check the OS camera permission for your terminal/Python.
+- **No audible effect:** reopen the Equalizer APO Configurator and confirm your actual output device is checked, then restart.
+- **To remove Equalizer APO / restore default audio:** open the Equalizer APO Configurator, deselect your playback device, and restart your PC.
 
 ## The hardest problem here
 
@@ -99,7 +129,7 @@ The approach:
 
 Read directly out of the current source, not aspirational:
 
-- The Equalizer APO config path is hardcoded, not configurable from the UI or an environment variable. If APO isn't installed at that exact path, the write silently fails to a console `print` — the GUI gives no visible error.
+- The Equalizer APO config path is hardcoded, not configurable from the UI or an environment variable. If APO isn't installed at that exact path, the write silently fails to a console `print` — the GUI gives no other visible error.
 - The webcam index is hardcoded to `0` with no picker and no handling for a missing/busy camera beyond an infinite retry loop.
 - Gesture recognition is pure landmark geometry (finger-tip-vs-knuckle comparisons), not a trained classifier — it can misread hands at extreme angles, in low light, or wearing gloves. There's no per-user calibration step.
 - Mouse-driven sliders and gesture control write to the same shared state with no visual distinction between the two input sources beyond the info label.
@@ -117,6 +147,15 @@ Read directly out of the current source, not aspirational:
 None of this changes what's actually live: what's in this repository today is the fully self-contained gesture EQ, with no external accounts or API keys required.
 
 **Missing before this is fully "recruiter-proof":** a real screenshot or short screen recording of the app actually running (camera feed + live sliders responding to a hand) — the current image in this README is a title card, not proof of it working.
+
+## Files in this repo
+
+| File | Purpose |
+|------|----------|
+| `gesture_eq.py` | Main equalizer and gesture-control program |
+| `eq_state.json` | Real-time slider/lock state |
+| `saved_preset.json` | The saved preset for reuse |
+| `requirements.txt` | Dependency list |
 
 ## Next steps
 
